@@ -2,37 +2,34 @@
 
 import os, sys, time, re
 
-commmandLine = input("Enter command: ")
+#Get input from user
+commmandLine = input("Enter redirect command: \n")
 type(commmandLine)
 
-print (commmandLine)
+print()
 
-if (">" in commmandLine):
+#Check which redirect they want to do stdin/stdout
+if (">" in commmandLine): #stdout
 	parts = re.split(">", commmandLine)
 	parts[1] = parts[1].strip()
 	outputFname = parts[1]
 	first = re.split(" ", parts[0])
 	command = first[0]
 	inputFname = first[1]
-# elif (">" in commmandLine):
-# 	parts = re.split(">", commmandLine)
-# 	parts[1] = parts[1].strip()
-# 	inputFname = parts[1]
-# 	first = re.split(" ", parts[0])
-# 	command = first[0]
-# 	command = command.replace(" ", "")
-# 	command = command.strip()
-# 	outputFname = first[1]	
 
-print(command)
-print(inputFname)
-print(outputFname)
-# set input and output files
-# if len(sys.argv) > 1:
-#     print("Correct usage: redirect.py <command> <input text file> < <output text file>")
-#     print("or")
-#     print("Correct usage: redirect.py <command> <output text file> > <input text file>")
-#     exit()
+elif ("<" in commmandLine): #stdin
+	parts = re.split("<", commmandLine)
+	parts[1] = parts[1].strip()
+	inputFname = parts[1]
+	command = parts[0]
+	command = command.replace(" ", "")
+	command = command.strip()
+	outputFname = "theScreen"	
+
+#print out the command entered in pieces to make sure it's seperated correctly
+print("Executing command: " + command)  
+print("Reading input from: " + inputFname) 
+print("Writing output to: " + outputFname + "\n")
 
 pid = os.getpid()               # get and remember pid
 
@@ -49,21 +46,35 @@ elif rc == 0:                   # child
                  (os.getpid(), pid)).encode())
     args = [command, inputFname]
 
-    os.close(1)                 # redirect child's stdout
-    sys.stdout = open(outputFname, "w")
-    fd = sys.stdout.fileno() # os.open("p4-output.txt", os.O_CREAT)
-    os.set_inheritable(fd, True)
-    os.write(2, ("Child: opened fd=%d for writing\n" % fd).encode())
+    #writes stdout to an output file
+    if outputFname is not "theScreen":
+        os.close(1)                 # redirect child's stdout
+        sys.stdout = open(outputFname, "w")
+        fd = sys.stdout.fileno() # os.open(outputFname, os.O_CREAT)
+        os.set_inheritable(fd, True)
+        os.write(2, ("Child: opened fd=%d for writing\n" % fd).encode())
 
-    for dir in re.split(":", os.environ['PATH']): # try each directory in path
-        program = "%s/%s" % (dir, args[0])
-        try:
-            os.execve(program, args, os.environ) # try to exec program
-        except FileNotFoundError:             # ...expected
-            pass                              # ...fail quietly 
+        for dir in re.split(":", os.environ['PATH']): # try each directory in path
+            program = "%s/%s" % (dir, args[0])
+            try:
+                os.execve(program, args, os.environ) # try to exec program
+            except FileNotFoundError:             # ...expected
+                pass                              # ...fail quietly 
 
-    os.write(2, ("Child:    Error: Could not exec %s\n" % args[0]).encode())
-    sys.exit(1)                 # terminate with error
+        os.write(2, ("Child:    Error: Could not exec %s\n" % args[0]).encode())
+        sys.exit(1)                 # terminate with error
+    #prints the stdin
+    elif outputFname is "theScreen":
+        for dir in re.split(":", os.environ['PATH']): # try each directory in path
+            program = "%s/%s" % (dir, args[0])
+            try:
+                os.execve(program, args, os.environ) # try to exec program
+            except FileNotFoundError:             # ...expected
+                pass                              # ...fail quietly 
+
+        os.write(2, ("Child:    Error: Could not exec %s\n" % args[0]).encode())
+        sys.exit(1)       	
+
 
 else:                           # parent (forked ok)
     os.write(1, ("Parent: My pid=%d.  Child's pid=%d\n" % 
